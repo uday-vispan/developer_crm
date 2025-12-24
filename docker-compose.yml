@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: devcrm_postgres
+    environment:
+      POSTGRES_USER: devcrm
+      POSTGRES_PASSWORD: devcrm_pass_change_me
+      POSTGRES_DB: devcrm
+    ports:
+      - "5432:5432"
+    volumes:
+      - devcrm_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: devcrm_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - devcrm_redisdata:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devcrm_backend
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://devcrm:devcrm_pass_change_me@postgres:5432/devcrm?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change_me_super_secret
+      JWT_EXPIRES_IN: 7d
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: devcrm_frontend
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE: http://YOUR_SERVER_IP:4000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  devcrm_pgdata:
+  devcrm_redisdata:
